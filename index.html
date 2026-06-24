@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>arXiv-Style Paper Analyzer</title>
+    <style>
+        /* arXiv Style Variables & Modern Theming */
+        :root {
+            --bg: #ffffff;
+            --text: #111111;
+            --link: #0366d6;
+            --border: #d1d5da;
+            --panel-bg: #f6f8fa;
+            --accent: #b31b1b; /* Official Cornell arXiv Red */
+            --input-bg: #ffffff;
+            --font-main: "Georgia", "Times New Roman", Times, serif;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        body.dark-mode {
+            --bg: #0d1117;
+            --text: #c9d1d9;
+            --link: #58a6ff;
+            --border: #30363d;
+            --panel-bg: #161b22;
+            --accent: #ff7b72;
+            --input-bg: #0d1117;
+            --shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--panel-bg);
+            border-bottom: 2px solid var(--accent);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 1.5em;
+            font-weight: normal;
+            margin: 0;
+            font-family: var(--font-sans);
+            letter-spacing: -0.5px;
+        }
+
+        .header-title span {
+            color: var(--accent);
+            font-weight: bold;
+            font-family: var(--font-main);
+            font-size: 1.2em;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: var(--link);
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 0.9em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .btn-link:hover { background: rgba(128,128,128,0.1); }
+
+        /* Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .left-panel {
+            width: 280px;
+            background-color: var(--bg);
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--panel-bg);
+        }
+
+        .right-panel {
+            width: 380px;
+            background-color: var(--bg);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        /* Components */
+        h2 {
+            font-size: 1.1em;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-top: 0;
+            font-weight: bold;
+            font-family: var(--font-sans);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+        }
+        body.dark-mode h2 { color: #8b949e; }
+
+        .control-group { margin-bottom: 24px; }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+            font-family: var(--font-sans);
+        }
+
+        input[type="password"], input[type="text"], textarea {
+            width: 100%;
+            padding: 8px 10px;
+            font-family: var(--font-sans);
+            font-size: 0.9em;
+            background-color: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--link);
+        }
+
+        .api-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: gray;
+            margin-left: 6px;
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        .api-status.connected { background-color: #2ea043; box-shadow: 0 0 8px #2ea043; }
+        .api-status.error { background-color: #da3633; box-shadow: 0 0 8px #da3633; }
+        .api-status.testing { background-color: #d29922; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        button.action-btn {
+            background-color: var(--panel-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            font-family: var(--font-sans);
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        button.action-btn:hover { background-color: var(--border); }
+        button.action-btn.primary { background-color: var(--accent); color: white; border-color: var(--accent); }
+        button.action-btn.primary:hover { opacity: 0.9; }
+        button.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .doc-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            font-family: var(--font-sans);
+        }
+
+        .doc-list li {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            background: var(--panel-bg);
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .doc-list li:hover { border-color: var(--border); }
+
+        .doc-link {
+            color: var(--text);
+            cursor: pointer;
+            word-break: break-all;
+            font-size: 0.9em;
+            flex: 1;
+        }
+        .doc-link.active { font-weight: bold; color: var(--accent); }
+
+        .delete-btn {
+            color: #da3633;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .delete-btn:hover { background: rgba(218, 54, 51, 0.1); }
+
+        /* Center Panel Tabs */
+        .tabs {
+            background-color: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .tab {
+            margin-right: 20px;
+            font-weight: bold;
+            color: var(--text);
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85em;
+        }
+        .tab.active { opacity: 1; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 2px;}
+
+        .view-area {
+            flex: 1;
+            position: relative;
+            background-color: var(--panel-bg);
+            margin: 20px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        /* NEW: Custom Canvas PDF Viewer Styles */
+        #pdf-viewer {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background-color: #525659;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+        body.dark-mode #pdf-viewer { background-color: #1e1e1e; }
+        
+        .pdf-page-canvas {
+            max-width: 100%;
+            background-color: white; /* PDF pages should always be white */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-radius: 2px;
+        }
+
+        /* Interactive Mindmap */
+        #mindmap-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            display: none;
+            overflow: hidden;
+            background-color: var(--bg);
+            cursor: grab;
+        }
+        #mindmap-container:active { cursor: grabbing; }
+        
+        #mindmap-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        .mindmap-node {
+            position: absolute;
+            background: var(--panel-bg);
+            border: 2px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-family: var(--font-sans);
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--text);
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            z-index: 10;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            user-select: none;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .mindmap-node:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            z-index: 11;
+        }
+        body.dark-mode .mindmap-node { box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+
+        /* Chat Panel */
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            font-family: var(--font-sans);
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background-color: var(--panel-bg);
+            padding: 12px;
+            border-radius: 8px 8px 0 8px;
+            margin-left: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .message.model {
+            padding: 0 10px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .message-role {
+            font-weight: 700;
+            font-size: 0.75em;
+            color: var(--accent);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Markdown Styles in Chat */
+        .message.model strong { color: var(--text); font-weight: 700; }
+        .message.model ul { margin-top: 5px; padding-left: 20px; }
+        .message.model li { margin-bottom: 4px; }
+        .message.model p { margin: 0 0 10px 0; }
+        .message.model p:last-child { margin: 0; }
+
+        .chat-input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .chat-input-area textarea {
+            resize: none;
+            min-height: 60px;
+            border: none;
+            background: transparent;
+            padding: 0;
+        }
+        .chat-input-area textarea:focus { border: none; }
+
+        .hidden { display: none !important; }
+
+        .empty-state {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+            font-family: var(--font-sans);
+        }
+        .empty-state svg { width: 48px; height: 48px; opacity: 0.5; margin-bottom: 10px; }
+        body.dark-mode .empty-state { color: #8b949e; }
+
+        /* Typing indicator */
+        .typing { display: flex; gap: 4px; padding: 5px 0; }
+        .typing span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing span:nth-child(1) { animation-delay: -0.32s; }
+        .typing span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 class="header-title"><span>arXiv</span>-Style Paper Analyzer</h1>
+        <button class="btn-link" onclick="toggleDarkMode()">Toggle Theme</button>
+    </header>
+
+    <div class="container">
+        <!-- LEFT PANEL: Settings & Uploads -->
+        <div class="left-panel panel">
+            <h2>Configuration</h2>
+            <div class="control-group">
+                <label for="api-key" title="Your key is saved locally in your browser.">
+                    Gemini API Key 
+                    <span id="api-status" class="api-status" title="Status"></span>
+                </label>
+                <input type="password" id="api-key" placeholder="Leave empty for sandbox access" oninput="debounceValidateKey()">
+                <div style="font-size: 0.75em; color: #666; margin-top: 4px; font-family: var(--font-sans);">
+                    Required for analysis. Key is saved securely in local storage.
+                </div>
+            </div>
+
+            <h2>Submissions (PDF)</h2>
+            <div class="control-group">
+                <input type="file" id="file-upload" multiple accept=".pdf" style="display: none;" onchange="handleFileUpload(event)">
+                <button class="action-btn" style="width: 100%;" onclick="document.getElementById('file-upload').click()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    Upload Paper(s)
+                </button>
+                <div id="upload-status" class="hidden" style="text-align: center; margin-top: 8px; font-size: 0.85em; font-family: var(--font-sans); color: var(--accent);">
+                    Parsing PDF securely on-device...
+                </div>
+            </div>
+
+            <ul class="doc-list" id="doc-list">
+                <li style="color: #666; justify-content: center; font-style: italic;">No papers uploaded.</li>
+            </ul>
+        </div>
+
+        <!-- CENTER PANEL: Viewer & Mindmap -->
+        <div class="center-panel">
+            <div class="tabs">
+                <button class="btn-link tab active" id="tab-viewer" onclick="switchTab('viewer')">Document Viewer</button>
+                <button class="btn-link tab" id="tab-mindmap" onclick="switchTab('mindmap')">Interactive Concept Map</button>
+                <div style="flex: 1;"></div>
+                <button class="action-btn hidden" id="btn-generate-mindmap" onclick="generateMindmap()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    Generate Nodes
+                </button>
+            </div>
+            
+            <div class="view-area">
+                <!-- NEW: Custom Canvas PDF Viewer -->
+                <div id="pdf-viewer" class="hidden"></div>
+                
+                <div id="no-doc-msg" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <div>Select a paper from the left panel to view.</div>
+                </div>
+
+                <!-- Mindmap Container -->
+                <div id="mindmap-container">
+                    <svg id="mindmap-svg"></svg>
+                    <div id="mindmap-nodes"></div>
+                    <div id="mindmap-msg" class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        <div id="mindmap-status-text">Click "Generate Nodes" to analyze concepts.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Chatbot -->
+        <div class="right-panel panel">
+            <h2>Analysis Assistant</h2>
+            
+            <div class="chat-history" id="chat-history">
+                <div class="message model">
+                    <div class="message-role">System Engine</div>
+                    <div class="markdown-body">Awaiting paper submissions. Provide your Gemini API key and upload PDFs to begin semantic analysis.</div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <textarea id="chat-input" placeholder="Query the paper(s)... e.g., 'Summarize the methodology'" onkeydown="handleChatEnter(event)"></textarea>
+                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                    <button id="btn-submit-query" class="action-btn primary" onclick="sendChatMessage()">
+                        Submit Query
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF.js for secure on-device processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // PDF.js worker setup
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        }
+
+        // Global State & Persistence
+        let apiKey = localStorage.getItem('arxiv_api_key') || '';
+        let apiStatus = 'idle'; 
+        let activeModel = 'gemini-2.5-flash-preview-09-2025'; // Fallback logic modifies this dynamically
+        let documents = [];
+        let selectedDocId = null;
+        let chatHistory = [];
+        let validationTimeout = null;
+        let currentMindmapData = null; // Store for dragging logic
+
+        // --- DOM Elements ---
+        const dom = {
+            apiKey: document.getElementById('api-key'),
+            apiStatus: document.getElementById('api-status'),
+            docList: document.getElementById('doc-list'),
+            uploadStatus: document.getElementById('upload-status'),
+            pdfViewer: document.getElementById('pdf-viewer'),
+            noDocMsg: document.getElementById('no-doc-msg'),
+            mindmapContainer: document.getElementById('mindmap-container'),
+            mindmapNodes: document.getElementById('mindmap-nodes'),
+            mindmapSvg: document.getElementById('mindmap-svg'),
+            mindmapMsg: document.getElementById('mindmap-msg'),
+            mindmapStatusText: document.getElementById('mindmap-status-text'),
+            btnGenerateMindmap: document.getElementById('btn-generate-mindmap'),
+            tabViewer: document.getElementById('tab-viewer'),
+            tabMindmap: document.getElementById('tab-mindmap'),
+            chatHistory: document.getElementById('chat-history'),
+            chatInput: document.getElementById('chat-input'),
+            btnSubmitQuery: document.getElementById('btn-submit-query')
+        };
+
+        // Initialize API key from storage and trigger validation immediately to check environment key
+        dom.apiKey.value = apiKey;
+        debounceValidateKey();
+
+        // --- Theming ---
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // --- API Key Management ---
+        function debounceValidateKey() {
+            apiKey = dom.apiKey.value.trim();
+            localStorage.setItem('arxiv_api_key', apiKey);
+            clearTimeout(validationTimeout);
+            
+            if (apiKey.length === 0) {
+                setApiStatus('idle');
+                return;
+            }
+            
+            // Show testing (yellow pulse) while typing/pasting
+            setApiStatus('testing');
+            
+            // Wait 1 second after you stop typing before validating
+            validationTimeout = setTimeout(() => {
+                validateKey();
+            }, 1000);
+        }
+
+        async function validateKey() {
+            try {
+                // Attempt 1: 2.5 Flash Preview
+                activeModel = 'gemini-2.5-flash-preview-09-2025';
+                let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey // Passes the new AQ. format keys correctly
+                    },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: "ping" }] }] })
+                });
+                
+                // Fallback Attempt 2: 1.5 flash model
+                if (res.status === 404) {
+                    activeModel = 'gemini-1.5-flash';
+                    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': apiKey
+                        },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: "ping" }] }] })
+                    });
+                }
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    console.error(`Google API Rejected the Key using ${activeModel}:`, JSON.stringify(errorData));
+                    setApiStatus('error');
+                    return;
+                }
+                
+                setApiStatus('connected');
+                console.log(`Connected to Gemini. Using active model: ${activeModel}`);
+            } catch (e) {
+                console.error("Network/CORS Error:", e);
+                setApiStatus('error');
+            }
+        }
+
+        function setApiStatus(status) {
+            apiStatus = status;
+            dom.apiStatus.className = `api-status ${status}`;
+        }
+
+        // --- PDF Processing ---
+        async function extractTextFromPdf(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let pages = [];
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const text = content.items.map(item => item.str).join(' ');
+                pages.push({ page: i, text });
+            }
+            return pages;
+        }
+
+        async function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            if (!window.pdfjsLib) {
+                alert("PDF processor failed to load. Check internet connection.");
+                return;
+            }
+
+            dom.uploadStatus.classList.remove('hidden');
+
+            for (const file of files) {
+                if (file.type !== 'application/pdf') continue;
+                
+                try {
+                    const parsedPages = await extractTextFromPdf(file);
+                    const docUrl = URL.createObjectURL(file);
+                    const newDoc = {
+                        id: 'doc_' + Math.random().toString(36).substr(2, 9),
+                        name: file.name,
+                        file: file, // Store the raw file to render later
+                        url: docUrl,
+                        pages: parsedPages
+                    };
+                    
+                    documents.push(newDoc);
+                    if (!selectedDocId) selectDocument(newDoc.id);
+                } catch (err) {
+                    console.error("Error parsing PDF:", err);
+                    alert(`Failed to parse ${file.name}. Ensure it is a valid PDF.`);
+                }
+            }
+            
+            dom.uploadStatus.classList.add('hidden');
+            renderDocumentList();
+            e.target.value = ''; 
+        }
+
+        function renderDocumentList() {
+            if (documents.length === 0) {
+                dom.docList.innerHTML = '<li style="color: #666; justify-content: center; font-style: italic;">No papers uploaded.</li>';
+                return;
+            }
+
+            dom.docList.innerHTML = '';
+            documents.forEach(doc => {
+                const li = document.createElement('li');
+                
+                const span = document.createElement('span');
+                span.className = `doc-link ${selectedDocId === doc.id ? 'active' : ''}`;
+                span.innerText = doc.name;
+                span.onclick = () => selectDocument(doc.id);
+                span.title = doc.name; // tooltip for long names
+                
+                const del = document.createElement('span');
+                del.className = 'delete-btn';
+                del.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+                del.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteDocument(doc.id);
+                };
+
+                li.appendChild(span);
+                li.appendChild(del);
+                dom.docList.appendChild(li);
+            });
+        }
+
+        function selectDocument(id) {
+            selectedDocId = id;
+            renderDocumentList();
+            
+            const doc = documents.find(d => d.id === id);
+            if (doc) {
+                dom.noDocMsg.classList.add('hidden');
+                dom.pdfViewer.classList.remove('hidden');
+                switchTab('viewer');
+                renderPdfToViewer(doc.file); // Call the new canvas rendering engine
+            }
+        }
+
+        // NEW: Custom Canvas Engine to guarantee PDF visibility in any sandbox
+        async function renderPdfToViewer(file) {
+            dom.pdfViewer.innerHTML = '<div style="margin: auto; padding: 20px; color: white; font-family: var(--font-sans);">Drawing PDF Engine...</div>';
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                dom.pdfViewer.innerHTML = ''; 
+                
+                // Create a progress indicator for long PDFs
+                const progressMsg = document.createElement('div');
+                progressMsg.style.padding = '20px';
+                progressMsg.style.color = '#ccc';
+                progressMsg.style.fontFamily = 'var(--font-sans)';
+                dom.pdfViewer.appendChild(progressMsg);
+                
+                // Render ALL pages dynamically
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    progressMsg.innerText = `Rendering page ${i} of ${pdf.numPages}...`;
+                    
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 1.5 }); // High-res scale
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.className = 'pdf-page-canvas';
+                    
+                    // Insert the canvas right above the progress message
+                    dom.pdfViewer.insertBefore(canvas, progressMsg);
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+                    // Smart Yield: Pause for 15ms every 3 pages to prevent browser freezing on massive documents
+                    if (i % 3 === 0) await new Promise(r => setTimeout(r, 15));
+                }
+                
+                // Remove progress indicator when completely finished
+                progressMsg.remove();
+                
+            } catch (err) {
+                console.error("Canvas Render Error:", err);
+                dom.pdfViewer.innerHTML = '<div style="margin: auto; padding: 20px; color: #ff7b72;">Failed to draw PDF visually, but text was extracted for AI analysis.</div>';
+            }
+        }
+
+        function deleteDocument(id) {
+            documents = documents.filter(d => d.id !== id);
+            if (selectedDocId === id) {
+                selectedDocId = null;
+                dom.pdfViewer.classList.add('hidden');
+                dom.noDocMsg.classList.remove('hidden');
+            }
+            // Reset mindmap on delete
+            currentMindmapData = null;
+            dom.mindmapNodes.innerHTML = '';
+            dom.mindmapSvg.innerHTML = '';
+            dom.mindmapMsg.classList.remove('hidden');
+            dom.mindmapStatusText.innerText = 'Click "Generate Nodes" to analyze remaining concepts.';
+            
+            renderDocumentList();
+        }
+
+        // --- Tabs & UI Navigation ---
+        function switchTab(tab) {
+            dom.tabViewer.classList.toggle('active', tab === 'viewer');
+            dom.tabMindmap.classList.toggle('active', tab === 'mindmap');
+            
+            if (tab === 'viewer') {
+                dom.mindmapContainer.style.display = 'none';
+                dom.btnGenerateMindmap.classList.add('hidden');
+                if (selectedDocId) dom.pdfViewer.classList.remove('hidden');
+                else dom.noDocMsg.classList.remove('hidden');
+            } else {
+                dom.pdfViewer.classList.add('hidden');
+                dom.noDocMsg.classList.add('hidden');
+                dom.mindmapContainer.style.display = 'block';
+                dom.btnGenerateMindmap.classList.remove('hidden');
+            }
+        }
+
+        // --- Custom Simple Markdown Parser ---
+        function parseMarkdown(text) {
+            let html = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')             // Italic
+                .replace(/`(.*?)`/g, '<code style="background:var(--border);padding:2px 4px;border-radius:3px;">$1</code>'); // Inline Code
+            
+            // Basic lists
+            html = html.replace(/^- (.*)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            
+            // Paragraphs
+            html = html.split('\n\n').map(p => {
+                if (p.startsWith('<ul>')) return p;
+                return `<p>${p}</p>`;
+            }).join('');
+            
+            return html;
+        }
+
+        // --- Chat AI ---
+        function generateContextString() {
+            return documents.map(doc => {
+                let docContent = `\n--- Document: ${doc.name} ---\n`;
+                doc.pages.forEach(p => {
+                    if (p.text.trim()) docContent += `[Page ${p.page}]: ${p.text}\n`;
+                });
+                return docContent;
+            }).join('\n');
+        }
+
+        function appendMessageToUI(role, text) {
+            // Remove typing indicator if it exists
+            const typingInd = document.getElementById('typing-indicator');
+            if (typingInd) typingInd.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            if (role === 'model') {
+                const roleLabel = document.createElement('div');
+                roleLabel.className = 'message-role';
+                roleLabel.innerText = 'Analysis Engine';
+                div.appendChild(roleLabel);
+            }
+            
+            const textContent = document.createElement('div');
+            textContent.className = 'markdown-body';
+            textContent.innerHTML = role === 'model' ? parseMarkdown(text) : text;
+            div.appendChild(textContent);
+            
+            dom.chatHistory.appendChild(div);
+            dom.chatHistory.scrollTop = dom.chatHistory.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const div = document.createElement('div');
+            div.className = 'message model';
+            div.id = 'typing-indicator';
+            div.innerHTML = `<div class="message-role">Analysis Engine</div><div class="typing"><span></span><span></span><span></span></div>`;
+            dom.chatHistory.appendChild(div);
+            dom.chatHistory.scrollTop = dom.chatHistory.scrollHeight;
+        }
+
+        function handleChatEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const text = dom.chatInput.value.trim();
+            if (!text) return;
+            
+            if (apiStatus !== 'connected') {
+                alert("Please provide a valid Gemini API key in the Configuration panel first.");
+                return;
+            }
+            if (documents.length === 0) {
+                alert("Please upload at least one paper before querying.");
+                return;
+            }
+
+            dom.btnSubmitQuery.disabled = true;
+            appendMessageToUI('user', text);
+            chatHistory.push({ role: 'user', parts: [{ text }] });
+            dom.chatInput.value = '';
+            showTypingIndicator();
+
+            const context = generateContextString();
+            const systemInstruction = `You are a strict, brilliant academic document analysis assistant. Use the provided context documents to answer questions. 
+            CRITICAL DIRECTIVES: 
+            1. You MUST cite sources explicitly. For every claim, append a citation like (DocumentName.pdf, Page 4).
+            2. If the answer is not found in the documents, state clearly: "The provided literature does not contain information to answer this." Do not hallucinate external facts.
+            3. Use markdown formatting (bolding, bullet points) to structure your response cleanly. Adopt a formal, academic tone.\n\nContext:\n${context}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey 
+                    },
+                    body: JSON.stringify({
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        contents: chatHistory
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error?.message || "API Request Failed");
+
+                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error processing response.";
+                
+                chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+                appendMessageToUI('model', reply);
+            } catch (err) {
+                console.error(err);
+                appendMessageToUI('model', `**System Error:** ${err.message}. Ensure your API key is valid and you have network connectivity.`);
+                chatHistory.pop(); // Remove the user message from history on failure so they can try again cleanly
+            } finally {
+                dom.btnSubmitQuery.disabled = false;
+            }
+        }
+
+        // --- Interactive Draggable Mindmap Logic ---
+        let dragNodeId = null;
+        let dragStartX = 0, dragStartY = 0;
+        let initialNodeX = 0, initialNodeY = 0;
+
+        async function generateMindmap() {
+            if (apiStatus !== 'connected' || documents.length === 0) {
+                alert("Ensure API is connected and papers are uploaded.");
+                return;
+            }
+
+            dom.mindmapStatusText.innerText = "Processing semantic relationships... please wait.";
+            dom.mindmapMsg.classList.remove('hidden');
+            dom.mindmapNodes.innerHTML = '';
+            dom.mindmapSvg.innerHTML = '';
+            dom.btnGenerateMindmap.disabled = true;
+
+            const context = generateContextString();
+            const prompt = `Analyze the provided academic documents. Extract the core methodologies, findings, and theoretical frameworks. 
+            Create a highly relevant concept map.
+            Return ONLY a valid, raw JSON object (no markdown block).
+            Format:
+            {
+              "nodes": [
+                { "id": "1", "label": "Main Concept", "x": 50, "y": 50 },
+                { "id": "2", "label": "Sub Concept", "x": 30, "y": 20 }
+              ],
+              "edges": [
+                { "source": "1", "target": "2" }
+              ]
+            }
+            Rules:
+            - x and y are CSS percentage positions (0 to 100). Keep them between 15 and 85.
+            - Ensure nodes are visually distributed so they do not overlap.
+            - Maximum 15 highly descriptive conceptual nodes.
+            
+            Context:\n${context}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey 
+                    },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error("API Request Failed");
+
+                let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (jsonText) {
+                    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    currentMindmapData = JSON.parse(jsonText);
+                    renderMindmap();
+                    dom.mindmapMsg.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error("Mindmap generation failed:", err);
+                dom.mindmapStatusText.innerText = "Analysis failed. Check API key and console.";
+            } finally {
+                dom.btnGenerateMindmap.disabled = false;
+            }
+        }
+
+        function renderMindmap() {
+            if (!currentMindmapData) return;
+            
+            dom.mindmapNodes.innerHTML = '';
+            dom.mindmapSvg.innerHTML = '';
+
+            // Draw SVG Edges
+            currentMindmapData.edges.forEach(edge => {
+                const source = currentMindmapData.nodes.find(n => n.id === edge.source);
+                const target = currentMindmapData.nodes.find(n => n.id === edge.target);
+                if (source && target) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', `${source.x}%`);
+                    line.setAttribute('y1', `${source.y}%`);
+                    line.setAttribute('x2', `${target.x}%`);
+                    line.setAttribute('y2', `${target.y}%`);
+                    line.setAttribute('stroke', document.body.classList.contains('dark-mode') ? '#444' : '#ccc');
+                    line.setAttribute('stroke-width', '2');
+                    line.setAttribute('stroke-dasharray', '5,5');
+                    // Add an ID to easily update it during drag
+                    line.setAttribute('data-source', source.id);
+                    line.setAttribute('data-target', target.id);
+                    dom.mindmapSvg.appendChild(line);
+                }
+            });
+
+            // Draw DOM Nodes
+            currentMindmapData.nodes.forEach(node => {
+                const div = document.createElement('div');
+                div.className = 'mindmap-node';
+                div.id = `node-${node.id}`;
+                div.style.left = `${node.x}%`;
+                div.style.top = `${node.y}%`;
+                div.innerText = node.label;
+                
+                // Drag Events
+                div.addEventListener('mousedown', (e) => startDrag(e, node));
+                dom.mindmapNodes.appendChild(div);
+            });
+        }
+
+        // --- Drag and Drop Logic ---
+        function startDrag(e, node) {
+            e.preventDefault();
+            dragNodeId = node.id;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            initialNodeX = node.x;
+            initialNodeY = node.y;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        function drag(e) {
+            if (!dragNodeId) return;
+
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            
+            // Convert pixel delta to percentage delta
+            const container = dom.mindmapContainer.getBoundingClientRect();
+            const percentDx = (dx / container.width) * 100;
+            const percentDy = (dy / container.height) * 100;
+
+            const node = currentMindmapData.nodes.find(n => n.id === dragNodeId);
+            if (node) {
+                node.x = initialNodeX + percentDx;
+                node.y = initialNodeY + percentDy;
+                
+                // Keep within bounds
+                node.x = Math.max(5, Math.min(95, node.x));
+                node.y = Math.max(5, Math.min(95, node.y));
+
+                // Update DOM Element
+                const el = document.getElementById(`node-${node.id}`);
+                el.style.left = `${node.x}%`;
+                el.style.top = `${node.y}%`;
+
+                // Update connected SVG lines efficiently
+                const lines = dom.mindmapSvg.querySelectorAll(`line[data-source="${node.id}"], line[data-target="${node.id}"]`);
+                lines.forEach(line => {
+                    if (line.getAttribute('data-source') === node.id) {
+                        line.setAttribute('x1', `${node.x}%`);
+                        line.setAttribute('y1', `${node.y}%`);
+                    } else {
+                        line.setAttribute('x2', `${node.x}%`);
+                        line.setAttribute('y2', `${node.y}%`);
+                    }
+                });
+            }
+        }
+
+        function endDrag() {
+            dragNodeId = null;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+
+        // Re-render lines on theme change
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class' && currentMindmapData) {
+                    renderMindmap(); // Fast enough to just redraw lines for color change
+                }
+            });
+        });
+        observer.observe(document.body, { attributes: true });
+
+    </script>
+</body>
+</html>
