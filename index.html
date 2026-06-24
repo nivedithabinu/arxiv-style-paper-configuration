@@ -534,7 +534,7 @@
         }
 
         // Global State & Persistence
-        let apiKey = localStorage.getItem('arxiv_api_key') || '';
+        let apiKey = localStorage.getItem('arxiv_api_key') || ''; 
         let apiStatus = 'idle'; 
         let activeModel = 'gemini-2.5-flash-preview-09-2025'; // Fallback logic modifies this dynamically
         let documents = [];
@@ -564,7 +564,7 @@
             btnSubmitQuery: document.getElementById('btn-submit-query')
         };
 
-        // Initialize API key from storage and trigger validation immediately
+        // Initialize API key and trigger validation immediately
         dom.apiKey.value = apiKey;
         debounceValidateKey();
 
