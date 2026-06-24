@@ -536,7 +536,7 @@
         // Global State & Persistence
         let apiKey = localStorage.getItem('arxiv_api_key') || ''; 
         let apiStatus = 'idle'; 
-        let activeModel = 'gemini-2.0-flash'; // Fallback logic modifies this dynamically
+        let activeModel = 'gemini-flash-latest'; // Fallback logic modifies this dynamically
         let documents = [];
         let selectedDocId = null;
         let chatHistory = [];
@@ -595,8 +595,8 @@
 
         async function validateKey() {
             try {
-                // Attempt 1: 2.5 Flash Preview (Using URL Parameter to bypass CORS completely)
-                activeModel = 'gemini-2.0-flash';
+                // Attempt 1: Flash Preview (Using URL Parameter to bypass CORS completely)
+                activeModel = 'gemini-flash-latest';
                 let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
