@@ -596,7 +596,7 @@
         async function validateKey() {
             try {
                 // Attempt 1: 2.5 Flash Preview (Using URL Parameter to bypass CORS completely)
-                activeModel = 'gemini-2.5-flash-preview-09-2025';
+                activeModel = 'gemini-2.5-flash';
                 let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
